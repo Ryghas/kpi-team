@@ -1,0 +1,27 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-paper: #f6f7f9;
+  --color-ink: #1d2433;
+  --color-muted: #667085;
+  --color-line: #dfe3ea;
+  --color-accent: #3346a8;
+  /* Ramp level: satu-satunya "warna" di halaman — level adalah bahasa visual laporan ini */
+  --color-l1: #b42318;
+  --color-l2: #dc6803;
+  --color-l3: #98a2b3;
+  --color-l4: #2e90a0;
+  --color-l5: #0b6b5d;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-feature-settings: 'tnum' 1;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
