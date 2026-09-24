@@ -8,8 +8,13 @@ import type { IssueRow } from './types'
  * (endpoint pengganti /search yang sudah deprecated). Tidak ada satu pun write call —
  * token cukup dari akun service dengan permission "Browse Projects".
  */
-/** customfield_10032 = "Story Points" — satu-satunya dari 3 field story-point di instance ini yang benar-benar terisi (cek manual, cf lain 0 tiket). */
-const FIELDS = ['summary', 'project', 'issuetype', 'status', 'assignee', 'created', 'updated', 'resolutiondate', 'duedate', 'parent', 'customfield_10032'] as const
+/**
+ * Story points tersebar di 2 field custom tergantung project:
+ * customfield_10032 "Story Points" (mayoritas project) dan customfield_10016 "Story point estimate"
+ * (dipakai project "Commercial & Acquisition" — cek manual, tidak pernah dua-duanya terisi sekaligus).
+ * customfield_10151 "Story Point" lama tidak dipakai project mana pun (0 tiket terisi).
+ */
+const FIELDS = ['summary', 'project', 'issuetype', 'status', 'assignee', 'created', 'updated', 'resolutiondate', 'duedate', 'parent', 'customfield_10032', 'customfield_10016'] as const
 const PAGE_SIZE = 100
 
 const issueSchema = z.object({
@@ -26,6 +31,7 @@ const issueSchema = z.object({
     duedate: z.string().nullable(),
     parent: z.object({ fields: z.object({ summary: z.string(), issuetype: z.object({ name: z.string() }) }) }).nullish(),
     customfield_10032: z.number().nullish(),
+    customfield_10016: z.number().nullish(),
   }),
 })
 
@@ -83,7 +89,7 @@ function toRow({ key, fields: f }: z.infer<typeof issueSchema>): IssueRow {
     resolved: f.resolutiondate ? parseJiraDate(f.resolutiondate) : null,
     dueDate: f.duedate,
     initiative: f.parent?.fields.issuetype.name === 'Epic' ? f.parent.fields.summary : null,
-    storyPoints: f.customfield_10032 ?? null,
+    storyPoints: f.customfield_10032 ?? f.customfield_10016 ?? null,
   }
 }
 

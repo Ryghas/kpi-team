@@ -3,8 +3,9 @@ import type { KpiReport } from '@/features/kpi/types'
 
 const ROWS = (s: [number, number, number, number], t: [number, number, number, number]) => [
   { label: 'Portfolio', unit: 'rata-rata grup', l5: '≥1,10x', l4: '≥1,00x', l3: '≥0,90x', l2: '≥0,80x', l1: '<0,80x' },
-  { label: 'CR Delivery', unit: 'hari rata-rata', l5: '≤3', l4: '≤7', l3: '≤14', l2: '≤21', l1: '>21' },
-  { label: 'Stability', unit: 'defect + bug', l5: `≤${s[0]}`, l4: `≤${s[1]}`, l3: `≤${s[2]}`, l2: `≤${s[3]}`, l1: `>${s[3]}` },
+  { label: 'Timeline', unit: 'hari rata-rata cycle time', l5: '≤3', l4: '≤7', l3: '≤14', l2: '≤21', l1: '>21' },
+  { label: 'CR Delivery', unit: 'tiket Bug', l5: '0', l4: `≥${t[3]}`, l3: `≥${t[2]}`, l2: `≥${t[1]}`, l1: `≥${t[0]}` },
+  { label: 'Stability', unit: 'tiket Defect', l5: `≤${s[0]}`, l4: `≤${s[1]}`, l3: `≤${s[2]}`, l2: `≤${s[3]}`, l1: `>${s[3]}` },
   { label: 'Tech', unit: 'tiket tech debt', l5: `≥${t[0]}`, l4: `≥${t[1]}`, l3: `≥${t[2]}`, l2: '≥1', l1: '0' },
 ]
 

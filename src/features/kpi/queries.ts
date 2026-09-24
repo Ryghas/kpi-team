@@ -1,16 +1,15 @@
 import 'server-only'
 import { cache } from 'react'
 import { computeReport } from './compute'
-import {
-  CYCLE_TIME_END, DEFAULT_TIMELINE_LEVEL, DONE_STATUSES, ENGINEERS, PROJECTS, STATUS_OVERRIDES, TIMELINE_LEVELS,
-} from './config'
+import { CYCLE_TIME_END, DONE_STATUSES, ENGINEERS, STATUS_OVERRIDES } from './config'
 import { searchIssues } from './jira'
 import { jqlDate, parsePeriod, quartersOf } from './period'
 import type { KpiReport, Period } from './types'
 
+/** Filter LANGSUNG per orang (assignee in (...)), TANPA filter project — sama seperti Ketersediaan Tim & Inisiatif Tracking, supaya tiket di project mana pun tetap terhitung. */
 const buildJql = (p: Period) =>
   [
-    `project in (${PROJECTS.map((n) => `"${n}"`).join(', ')})`,
+    `assignee in (${ENGINEERS.map((e) => `"${e.name}"`).join(', ')})`,
     `created >= "${jqlDate(p.start)}"`,
     `created < "${jqlDate(p.end)}"`,
   ].join(' AND ') + ' ORDER BY created ASC'
@@ -18,8 +17,6 @@ const buildJql = (p: Period) =>
 const optionsFor = (periodId: string) => ({
   engineers: ENGINEERS,
   statusOverrides: STATUS_OVERRIDES[periodId],
-  timelineLevels: TIMELINE_LEVELS[periodId],
-  defaultTimelineLevel: DEFAULT_TIMELINE_LEVEL,
   doneStatuses: DONE_STATUSES,
   cycleTimeEnd: CYCLE_TIME_END,
 })

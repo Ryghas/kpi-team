@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { computeReport } from './compute'
 import { parsePeriod, quartersOf, currentPeriodId } from './period'
-import { stabilityLevel, techLevel } from './rubric'
+import { crBugLevel, stabilityLevel, techLevel } from './rubric'
 import type { EngineerConfig, IssueRow } from './types'
 
 const engineers: EngineerConfig[] = [
@@ -43,6 +43,14 @@ describe('rubric thresholds (tetap, tidak di-skala per panjang periode)', () => 
     expect(techLevel(1)).toBe(2)       // L2 ≥1
     expect(techLevel(6)).toBe(5)       // L5 ≥6
     expect(techLevel(0)).toBe(1)       // L1 = 0
+  })
+
+  it('CR Delivery (tiket Bug) pakai ambang sama dengan Tech tapi dibalik: makin sedikit bug makin tinggi', () => {
+    expect(crBugLevel(0)).toBe(5) // L5 = 0
+    expect(crBugLevel(1)).toBe(4) // L4 ≥1
+    expect(crBugLevel(2)).toBe(3) // L3 ≥2
+    expect(crBugLevel(4)).toBe(2) // L2 ≥4
+    expect(crBugLevel(6)).toBe(1) // L1 ≥6
   })
 })
 
@@ -93,7 +101,21 @@ describe('computeReport', () => {
     expect(get('A').ratio).toBeCloseTo(0.5 * (20 / 15) + 0.5 * (4 / 3))
   })
 
-  it('mengabaikan tiket di luar periode dan Story, tanpa syarat minimum bulan aktif', () => {
+  it('menghitung semua variasi ejaan "Sub-task" (Subtask, sub-task, Sub-Task) sebagai Work Item yang sama', () => {
+    const issues = [
+      issue('A', months[0]!, 'Subtask'),
+      issue('A', months[0]!, 'sub-task'),
+      issue('A', months[1]!, 'Sub-Task'),
+      issue('A', months[1]!, 'Sub-task'),
+      ...months.map((m) => issue('B', m)), // baseline grup: default 'Sub-task'
+    ]
+    const r = computeReport(issues, q3, { engineers })
+    const a = r.results.find((x) => x.engineer.name === 'A')!
+    expect(a.totalWorkItems).toBe(4)
+    expect(a.counts['Sub-task']).toBe(4)
+  })
+
+  it('mengabaikan tiket di luar periode, tapi Story ikut dihitung sebagai Work Item', () => {
     const issues = [
       issue('A', '2026-06-30'), // Q2
       issue('A', '2026-07-01', 'Story'),
@@ -102,7 +124,7 @@ describe('computeReport', () => {
     ]
     const r = computeReport(issues, q3, { engineers })
     const a = r.results.find((x) => x.engineer.name === 'A')!
-    expect(a.totalWorkItems).toBe(1)
+    expect(a.totalWorkItems).toBe(2)
     expect(a.activeMonths).toBe(1)
     expect(a.status).toBe('Ranked')
   })
@@ -114,6 +136,30 @@ describe('computeReport', () => {
     ]
     const a = computeReport(issues, q3, { engineers }).results.find((x) => x.engineer.name === 'A')!
     expect([a.onTimeCount, a.dueDateCount]).toEqual([1, 2])
+  })
+
+  it('Timeline dari cycle time (dulu CR Delivery), CR Delivery dari jumlah Bug, Stability dari jumlah Defect saja', () => {
+    const issues = [
+      // Timeline: 1 Task, cycle time 2 hari -> crLevel(2) = L5 (<=3)
+      issue('A', '2026-07-10', 'Task', { updated: new Date('2026-07-12T09:00:00+07:00') }),
+      // 2 Defect -> Stability pakai defectCount=2 -> stabilityLevel(2) = L5
+      issue('A', months[0]!, 'Defect'),
+      issue('A', months[1]!, 'Defect'),
+      // 4 Bug -> CR Delivery pakai bugCount=4, ambang sama dgn Tech tapi DIBALIK: >=4 -> L2 (bukan L4)
+      issue('A', months[0]!, 'Bug'),
+      issue('A', months[0]!, 'Bug'),
+      issue('A', months[1]!, 'Bug'),
+      issue('A', months[2]!, 'Bug'),
+    ]
+    const r = computeReport(issues, q3, { engineers })
+    const a = r.results.find((x) => x.engineer.name === 'A')!
+    expect(a.defectCount).toBe(2)
+    expect(a.bugCount).toBe(4)
+    expect(a.levels.stability).toBe(5)
+    expect(a.levels.cr).toBe(2)
+    // avgCycleDays dirata-rata dari SEMUA tiket Task+Defect+Bug (bukan Task saja) -> (2 + 0*6) / 7 hari, tetap <=3 -> L5
+    expect(a.avgCycleDays).toBeCloseTo(2 / 7)
+    expect(a.levels.timeline).toBe(5)
   })
 
   it('melaporkan assignee yang belum ada di konfigurasi', () => {
