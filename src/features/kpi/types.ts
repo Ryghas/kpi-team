@@ -55,7 +55,7 @@ export interface EngineerConfig {
   note?: string
 }
 
-export type PeriodKind = 'quarter' | 'semester'
+export type PeriodKind = 'quarter' | 'semester' | 'year'
 
 export interface Period {
   id: string // '2026-Q3' | '2026-H2'
@@ -93,6 +93,9 @@ export interface EngineerResult {
   doneWorkItems: number
   donePct: number | null
   groupAvg: number | null
+  groupAvgStoryPoints: number | null
+  ratioWorkItems: number | null
+  ratioStoryPoints: number | null
   ratio: number | null
   dueDateCount: number
   onTimeCount: number

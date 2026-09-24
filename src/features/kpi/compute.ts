@@ -85,7 +85,8 @@ export function computeReport(issues: IssueRow[], period: Period, opts: ComputeO
 
     const total = work.length
     const done = work.filter((i) => doneStatuses.has(i.status)).length
-    const totalStoryPoints = mine.reduce((sum, i) => sum + (i.storyPoints ?? 0), 0)
+    // Hanya story points dari tiket yang sudah Done — tiket belum selesai belum "menghasilkan" apapun.
+    const totalStoryPoints = mine.filter((i) => doneStatuses.has(i.status)).reduce((sum, i) => sum + (i.storyPoints ?? 0), 0)
 
     // Daftar lengkap tiket engineer ini di periode ini (semua tipe, done & belum done) — untuk detail klik-lihat.
     const tickets = [...mine]
@@ -113,13 +114,21 @@ export function computeReport(issues: IssueRow[], period: Period, opts: ComputeO
 
   // Pass 2 — rata-rata grup (Ranked saja) → rasio → level → skor
   const groupAvg = new Map<string, number>()
+  const groupAvgSP = new Map<string, number>()
   for (const [group, members] of groupBy(draft.filter((d) => d.status === 'Ranked'), (d) => d.engineer.group)) {
     groupAvg.set(group, members.reduce((a, m) => a + m.totalWorkItems, 0) / members.length)
+    groupAvgSP.set(group, members.reduce((a, m) => a + m.totalStoryPoints, 0) / members.length)
   }
 
   const scored = draft.map((d) => {
     const avg = groupAvg.get(d.engineer.group) ?? null
-    const ratio = avg ? d.totalWorkItems / avg : null
+    const avgSP = groupAvgSP.get(d.engineer.group) ?? null
+    // Rata-rata grup 0 (tidak ada satupun yang isi Story Points) -> rasio Story Points dianggap 0, bukan diabaikan.
+    const ratioWorkItems = avg === null ? null : (avg === 0 ? 0 : d.totalWorkItems / avg)
+    const ratioStoryPoints = avgSP === null ? null : (avgSP === 0 ? 0 : d.totalStoryPoints / avgSP)
+    const ratio = ratioWorkItems === null || ratioStoryPoints === null
+      ? null
+      : 0.5 * ratioStoryPoints + 0.5 * ratioWorkItems
     const levels = {
       pcr: ratio === null ? 1 : pcrLevel(ratio),
       timeline: timelineLevels[d.engineer.name] ?? defaultTimelineLevel,
@@ -139,9 +148,9 @@ export function computeReport(issues: IssueRow[], period: Period, opts: ComputeO
     const explain: IndicatorExplain[] = [
       {
         key: 'pcr', label: 'Portfolio', weight: WEIGHTS.pcr, level: levels.pcr,
-        detail: ratio === null || avg === null
+        detail: ratio === null
           ? `Tidak ada rata-rata grup untuk dibandingkan (0 engineer Ranked di grup ini) -> L${levels.pcr}.`
-          : `${d.totalWorkItems} work item ÷ rata-rata grup ${fix(avg)} = ${fix(ratio, 2)}x -> L${levels.pcr}.`,
+          : `(${d.totalStoryPoints} story points ÷ rata-rata ${fix(avgSP ?? 0)} = ${fix(ratioStoryPoints ?? 0, 2)}x) x 0,5 + (${d.totalWorkItems} work item ÷ rata-rata ${fix(avg ?? 0)} = ${fix(ratioWorkItems ?? 0, 2)}x) x 0,5 = ${fix(ratio, 2)}x -> L${levels.pcr}.`,
       },
       {
         key: 'timeline', label: 'Timeline', weight: WEIGHTS.timeline, level: levels.timeline,
@@ -165,7 +174,7 @@ export function computeReport(issues: IssueRow[], period: Period, opts: ComputeO
       },
     ]
 
-    return { ...d, groupAvg: avg, ratio, levels, explain, score }
+    return { ...d, groupAvg: avg, groupAvgStoryPoints: avgSP, ratioWorkItems, ratioStoryPoints, ratio, levels, explain, score }
   })
 
   // Pass 3 — peringkat ala Excel RANK(): nilai sama → peringkat sama

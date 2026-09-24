@@ -10,7 +10,7 @@ export const PROJECTS = [
   'Marketing Service', 'NEW MUFINS SYARIAH', 'Free Sprint', 'Full Sprint',
 ] as const
 
-export const DONE_STATUSES = new Set(['Done'])
+export const DONE_STATUSES = new Set(['Done', 'Development Done'])
 
 /** Dikeluarkan dari Ketersediaan Tim (hitungan maupun daftar) — dianggap selesai/tidak berlanjut, sama seperti Done. */
 export const AVAILABILITY_DONE_STATUSES = new Set(['Done', 'Development Done', 'Dropped'])

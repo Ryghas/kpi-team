@@ -4,6 +4,7 @@ import type { Period } from '@/features/kpi/types'
 const CODES = [
   { label: 'Kuartal', items: ['Q1', 'Q2', 'Q3', 'Q4'] },
   { label: 'Semester', items: ['H1', 'H2'] },
+  { label: 'Tahun', items: ['FY'] },
 ] as const
 
 export function PeriodNav({ active }: { active: Period }) {
@@ -28,7 +29,7 @@ export function PeriodNav({ active }: { active: Period }) {
                 aria-current={isActive ? 'page' : undefined}
                 className={`px-3 py-1.5 ${isActive ? 'bg-ink text-white' : 'hover:bg-paper'}`}
               >
-                {c}
+                {c === 'FY' ? '1 Tahun' : c}
               </Link>
             )
           })}
