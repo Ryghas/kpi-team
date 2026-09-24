@@ -1,21 +1,27 @@
 /**
  * Portfolio Completion Rate (throughput) dan done% — mencakup SEMUA tipe kerja nyata per instruksi leader:
- * Task, Sub-task, Defect, Bug, Tech Debt, Documentation. Defect/Bug/Tech Debt sengaja dobel-hitung
+ * Task, Sub-task, Defect, Bug, Tech Debt, Documentation, Story. Defect/Bug/Tech Debt sengaja dobel-hitung
  * (juga masuk BUG_TYPES/Stability dan TECH_DEBT_TYPE/Tech Enhancements) — bukan bug, permintaan eksplisit.
  */
-export const WORK_ITEM_TYPES = ['Task', 'Sub-task', 'Defect', 'Bug', 'Tech Debt', 'Documentation'] as const
+export const WORK_ITEM_TYPES = ['Task', 'Sub-task', 'Defect', 'Bug', 'Tech Debt', 'Documentation', 'Story'] as const
 export type WorkItemType = (typeof WORK_ITEM_TYPES)[number]
 
-/** App Stability. */
+/** Union Defect+Bug — dipakai untuk bulan aktif & inisiatif saja (bukan skor Stability, itu Defect saja). */
 export const BUG_TYPES = ['Defect', 'Bug'] as const
 export type BugType = (typeof BUG_TYPES)[number]
+
+/** Stability — HANYA tiket Defect (Bug dipindah ke indikator CR Delivery). */
+export const DEFECT_TYPE = 'Defect'
+
+/** CR Delivery (baru) — jumlah tiket Bug, pakai ambang count yang sama dengan Tech Enhancements (L5..L1). */
+export const BUG_TYPE = 'Bug'
 
 /** Tech Enhancements. */
 export const TECH_DEBT_TYPE = 'Tech Debt'
 
-/** CR Delivery (cycle time) — persis label workbook "CR Delivery (Task/Bug)": Task + Bug/Defect saja, exclude Sub-task & Tech Debt. */
-export const CR_DELIVERY_TYPES = ['Task', 'Defect', 'Bug'] as const
-export type CrDeliveryType = (typeof CR_DELIVERY_TYPES)[number]
+/** Timeline (baru) — cycle time Task + Bug/Defect, dulu ini yang dipakai untuk CR Delivery sebelum digeser. */
+export const TIMELINE_CYCLE_TYPES = ['Task', 'Defect', 'Bug'] as const
+export type TimelineCycleType = (typeof TIMELINE_CYCLE_TYPES)[number]
 
 export type Group = 'FE' | 'Mobile'
 export type RankStatus = 'Ranked' | 'Non-Ranked'
@@ -101,7 +107,9 @@ export interface EngineerResult {
   onTimeCount: number
   onTimePct: number | null
   avgCycleDays: number | null
-  totalBugs: number
+  cycleTicketCount: number
+  defectCount: number
+  bugCount: number
   techDebt: number
   activeMonths: number
   initiatives: string[]

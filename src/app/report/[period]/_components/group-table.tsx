@@ -76,9 +76,9 @@ export function GroupTable({ title, results, quarters, periodId }: Props) {
                     <span className="block text-xs text-muted">{fix(r.ratioWorkItems, 2)}x, {pct(r.donePct)} done</span>
                   </td>
                   <td className="px-2 py-3"><LevelCell level={r.levels.pcr} hint={`(SP ${fix(r.ratioStoryPoints, 2)}x x 50%) + (Work ${fix(r.ratioWorkItems, 2)}x x 50%) = ${fix(r.ratio, 2)}x`} /></td>
-                  <td className="px-2 py-3"><LevelCell level={r.levels.timeline} hint={`On-time ${pct(r.onTimePct)} dari ${r.dueDateCount} tiket ber-due date (indikator)`} /></td>
-                  <td className="px-2 py-3"><LevelCell level={r.levels.cr} hint={`Rata-rata cycle time ${fix(r.avgCycleDays)} hari`} /></td>
-                  <td className="px-2 py-3"><LevelCell level={r.levels.stability} hint={`${r.totalBugs} defect + bug`} /></td>
+                  <td className="px-2 py-3"><LevelCell level={r.levels.timeline} hint={`Rata-rata cycle time ${fix(r.avgCycleDays)} hari`} /></td>
+                  <td className="px-2 py-3"><LevelCell level={r.levels.cr} hint={`${r.bugCount} tiket Bug`} /></td>
+                  <td className="px-2 py-3"><LevelCell level={r.levels.stability} hint={`${r.defectCount} tiket Defect`} /></td>
                   <td className="px-2 py-3"><LevelCell level={r.levels.tech} hint={`${r.techDebt} tiket tech debt`} /></td>
                   <td className="px-3 py-3 text-right text-base font-semibold text-ink">{fix(r.score, 2)}</td>
                   {canExport && (

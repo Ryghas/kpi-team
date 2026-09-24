@@ -20,6 +20,7 @@ export function pcrLevel(ratio: number): Level {
   return 1
 }
 
+/** Dipakai untuk indikator Timeline (cycle time hari) — dulu ini basis "CR Delivery" sebelum digeser. */
 export function crLevel(avgDays: number): Level {
   if (avgDays <= 3) return 5
   if (avgDays <= 7) return 4
@@ -31,18 +32,20 @@ export function crLevel(avgDays: number): Level {
 /** Ambang tetap (tidak di-skala per panjang periode) — sama persis di semua periode Q1-Q4/H1-H2. */
 export const stabilityThresholds = (): [number, number, number, number] => [3, 6, 9, 12]
 
-export function stabilityLevel(bugs: number): Level {
+/** Stability — HANYA jumlah tiket Defect (Bug dipindah ke indikator CR Delivery). */
+export function stabilityLevel(defects: number): Level {
   const [l5, l4, l3, l2] = stabilityThresholds()
-  if (bugs <= l5) return 5
-  if (bugs <= l4) return 4
-  if (bugs <= l3) return 3
-  if (bugs <= l2) return 2
+  if (defects <= l5) return 5
+  if (defects <= l4) return 4
+  if (defects <= l3) return 3
+  if (defects <= l2) return 2
   return 1
 }
 
 /** Ambang tetap (tidak di-skala per panjang periode) — sama persis di semua periode Q1-Q4/H1-H2. */
 export const techThresholds = (): [number, number, number, number] => [6, 4, 2, 1]
 
+/** Ambang count L5..L1 — dipakai untuk Tech Enhancements: makin banyak tiket Tech Debat yang dikerjakan, makin tinggi level. */
 export function techLevel(count: number): Level {
   const [l5, l4, l3, l2] = techThresholds()
   if (count >= l5) return 5
@@ -50,6 +53,11 @@ export function techLevel(count: number): Level {
   if (count >= l3) return 3
   if (count >= l2) return 2
   return 1
+}
+
+/** CR Delivery (tiket Bug) — ambang sama dengan Tech (techThresholds), tapi levelnya DIBALIK: makin sedikit Bug makin tinggi level. */
+export function crBugLevel(count: number): Level {
+  return (6 - techLevel(count)) as Level
 }
 
 /** Syarat eligibility #1: aktif min. 3 dari 5 bulan → 60% dari panjang periode. */

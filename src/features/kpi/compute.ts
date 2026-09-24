@@ -1,9 +1,9 @@
-import { WEIGHTS, crLevel, pcrLevel, round2, scaleFor, stabilityLevel, techLevel } from './rubric'
+import { WEIGHTS, crBugLevel, crLevel, pcrLevel, round2, scaleFor, stabilityLevel, techLevel } from './rubric'
 import { wibDayKey, wibMonthKey } from './period'
 import {
-  BUG_TYPES, CR_DELIVERY_TYPES, TECH_DEBT_TYPE, WORK_ITEM_TYPES,
-  type BugType, type CrDeliveryType, type EngineerConfig, type EngineerResult, type IndicatorExplain,
-  type IssueRow, type KpiReport, type Level, type Period, type RankStatus, type WorkItemType,
+  BUG_TYPE, BUG_TYPES, DEFECT_TYPE, TECH_DEBT_TYPE, TIMELINE_CYCLE_TYPES, WORK_ITEM_TYPES,
+  type BugType, type EngineerConfig, type EngineerResult, type IndicatorExplain,
+  type IssueRow, type KpiReport, type Period, type RankStatus, type TimelineCycleType, type WorkItemType,
 } from './types'
 
 const fix = (v: number, d = 1) => v.toFixed(d).replace('.', ',')
@@ -11,17 +11,20 @@ const fix = (v: number, d = 1) => v.toFixed(d).replace('.', ',')
 export interface ComputeOptions {
   engineers: EngineerConfig[]
   statusOverrides?: Partial<Record<string, { status: RankStatus; note: string }>>
-  timelineLevels?: Partial<Record<string, Level>>
-  defaultTimelineLevel?: Level
   doneStatuses?: ReadonlySet<string>
   cycleTimeEnd?: 'updated' | 'resolved'
   now?: Date
 }
 
 const DAY_MS = 86_400_000
-const isWorkItem = (t: string): t is WorkItemType => (WORK_ITEM_TYPES as readonly string[]).includes(t)
+const OTHER_WORK_ITEM_TYPES = WORK_ITEM_TYPES.filter((t) => t !== 'Sub-task')
+// Toleran terhadap variasi ejaan "Sub-task" (Subtask, sub-task, Sub-Task, dst) — jaga-jaga in case Jira tidak konsisten.
+const normalizeType = (t: string) => t.toLowerCase().replace(/[\s-]/g, '')
+const isSubTask = (t: string) => normalizeType(t) === 'subtask'
+const canonicalType = (t: string) => (isSubTask(t) ? 'Sub-task' : t)
+const isWorkItem = (t: string): t is WorkItemType => isSubTask(t) || (OTHER_WORK_ITEM_TYPES as readonly string[]).includes(t)
 const isBug = (t: string): t is BugType => (BUG_TYPES as readonly string[]).includes(t)
-const isCrDelivery = (t: string): t is CrDeliveryType => (CR_DELIVERY_TYPES as readonly string[]).includes(t)
+const isTimelineTicket = (t: string): t is TimelineCycleType => (TIMELINE_CYCLE_TYPES as readonly string[]).includes(t)
 
 /** Map.groupBy (ES2024) belum tersedia di semua runtime Node target deploy — polyfill minimal. */
 function groupBy<T, K>(items: T[], keyFn: (item: T) => K): Map<K, T[]> {
@@ -41,7 +44,7 @@ function groupBy<T, K>(items: T[], keyFn: (item: T) => K): Map<K, T[]> {
  */
 export function computeReport(issues: IssueRow[], period: Period, opts: ComputeOptions): KpiReport {
   const {
-    engineers, statusOverrides = {}, timelineLevels = {}, defaultTimelineLevel = 3,
+    engineers, statusOverrides = {},
     doneStatuses = new Set(['Done']), cycleTimeEnd = 'updated', now = new Date(),
   } = opts
 
@@ -55,21 +58,25 @@ export function computeReport(issues: IssueRow[], period: Period, opts: ComputeO
   // Pass 1 — metrik mentah per engineer
   const draft = engineers.map((engineer) => {
     const mine = byAssignee.get(engineer.name) ?? []
-    // Portfolio Completion Rate — Sub-task + Task murni, exclude Bug/Defect (Stability) & Tech Debt (Tech Enhancements).
+    // Portfolio Completion Rate — Sub-task + Task murni, exclude Bug/Defect (Stability/CR Delivery) & Tech Debt (Tech Enhancements).
     const work = mine.filter((i) => isWorkItem(i.issueType))
-    // App Stability.
+    // Union Defect+Bug, dipakai untuk bulan aktif & inisiatif saja.
     const bugs = mine.filter((i) => isBug(i.issueType))
+    // Stability (baru) — HANYA Defect.
+    const defects = mine.filter((i) => i.issueType === DEFECT_TYPE)
+    // CR Delivery (baru) — HANYA Bug.
+    const bugTickets = mine.filter((i) => i.issueType === BUG_TYPE)
     // Tech Enhancements.
     const techDebtTickets = mine.filter((i) => i.issueType === TECH_DEBT_TYPE)
-    // CR Delivery — label workbook "CR Delivery (Task/Bug)": Task + Bug/Defect saja, exclude Sub-task & Tech Debt.
-    const crTickets = mine.filter((i) => isCrDelivery(i.issueType))
+    // Timeline (baru, dulu ini basis CR Delivery) — Task + Bug/Defect saja, exclude Sub-task & Tech Debt.
+    const cycleTickets = mine.filter((i) => isTimelineTicket(i.issueType))
     // Bulan aktif & inisiatif dihitung dari seluruh pekerjaan nyata (union semua kategori di atas).
     const allTracked = [...work, ...bugs, ...techDebtTickets]
 
     const counts = Object.fromEntries(WORK_ITEM_TYPES.map((t) => [t, 0])) as Record<WorkItemType, number>
-    for (const i of work) counts[i.issueType as WorkItemType]++
+    for (const i of work) counts[canonicalType(i.issueType) as WorkItemType]++
 
-    const cycleDays = crTickets.map((i) => {
+    const cycleDays = cycleTickets.map((i) => {
       const end = cycleTimeEnd === 'resolved' ? (i.resolved ?? i.updated) : i.updated
       return (end.getTime() - i.created.getTime()) / DAY_MS
     })
@@ -106,8 +113,9 @@ export function computeReport(issues: IssueRow[], period: Period, opts: ComputeO
       onTimeCount: onTime,
       onTimePct: withDue.length ? onTime / withDue.length : null,
       avgCycleDays: cycleDays.length ? cycleDays.reduce((a, b) => a + b, 0) / cycleDays.length : null,
-      crCount: crTickets.length,
-      totalBugs: bugs.length,
+      cycleTicketCount: cycleTickets.length,
+      defectCount: defects.length,
+      bugCount: bugTickets.length,
       techDebt: techDebtTickets.length,
     }
   })
@@ -131,10 +139,13 @@ export function computeReport(issues: IssueRow[], period: Period, opts: ComputeO
       : 0.5 * ratioStoryPoints + 0.5 * ratioWorkItems
     const levels = {
       pcr: ratio === null ? 1 : pcrLevel(ratio),
-      timeline: timelineLevels[d.engineer.name] ?? defaultTimelineLevel,
-      // Tanpa work item → L1, bukan L5 (workbook mengembalikan 0 hari → L5, itu edge case yang bocor)
-      cr: d.avgCycleDays === null ? 1 : crLevel(d.avgCycleDays),
-      stability: stabilityLevel(d.totalBugs),
+      // Timeline (baru, dulu ini CR Delivery) — cycle time hari. Tanpa tiket → L1, bukan L5
+      // (workbook mengembalikan 0 hari → L5, itu edge case yang bocor).
+      timeline: d.avgCycleDays === null ? 1 : crLevel(d.avgCycleDays),
+      // CR Delivery (baru) — jumlah tiket Bug, ambang sama dengan Tech Enhancements tapi level dibalik (makin sedikit bug makin tinggi).
+      cr: crBugLevel(d.bugCount),
+      // Stability (baru) — HANYA Defect.
+      stability: stabilityLevel(d.defectCount),
       tech: techLevel(d.techDebt),
     } satisfies EngineerResult['levels']
 
@@ -142,8 +153,6 @@ export function computeReport(issues: IssueRow[], period: Period, opts: ComputeO
       WEIGHTS.pcr * levels.pcr + WEIGHTS.timeline * levels.timeline + WEIGHTS.cr * levels.cr +
       WEIGHTS.stability * levels.stability + WEIGHTS.tech * levels.tech,
     )
-
-    const timelineFilled = timelineLevels[d.engineer.name] !== undefined
 
     const explain: IndicatorExplain[] = [
       {
@@ -154,19 +163,17 @@ export function computeReport(issues: IssueRow[], period: Period, opts: ComputeO
       },
       {
         key: 'timeline', label: 'Timeline', weight: WEIGHTS.timeline, level: levels.timeline,
-        detail: timelineFilled
-          ? `Input manual leader untuk periode ini -> L${levels.timeline}.`
-          : `Belum diisi leader untuk periode ini, default L${defaultTimelineLevel}.`,
+        detail: d.avgCycleDays === null
+          ? `Tidak ada tiket Task/Bug/Defect di periode ini -> L${levels.timeline}.`
+          : `Rata-rata cycle time ${fix(d.avgCycleDays)} hari dari ${d.cycleTicketCount} tiket -> L${levels.timeline}.`,
       },
       {
         key: 'cr', label: 'CR Delivery', weight: WEIGHTS.cr, level: levels.cr,
-        detail: d.avgCycleDays === null
-          ? `Tidak ada tiket Task/Bug/Defect di periode ini -> L${levels.cr}.`
-          : `Rata-rata cycle time ${fix(d.avgCycleDays)} hari dari ${d.crCount} tiket -> L${levels.cr}.`,
+        detail: `${d.bugCount} tiket Bug -> L${levels.cr}.`,
       },
       {
         key: 'stability', label: 'Stability', weight: WEIGHTS.stability, level: levels.stability,
-        detail: `${d.totalBugs} tiket Defect+Bug -> L${levels.stability}.`,
+        detail: `${d.defectCount} tiket Defect -> L${levels.stability}.`,
       },
       {
         key: 'tech', label: 'Tech Enhancements', weight: WEIGHTS.tech, level: levels.tech,

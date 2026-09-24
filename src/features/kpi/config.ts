@@ -1,15 +1,9 @@
-import type { EngineerConfig, Level } from './types'
+import type { EngineerConfig } from './types'
 
 /**
  * Konfigurasi tim. Semua "input leader" hidup di file ini dan berubah lewat PR —
- * aplikasinya sendiri view-only, jadi tidak ada form, tidak ada database, dan
- * perubahan level Timeline punya jejak review di git.
+ * aplikasinya sendiri view-only, jadi tidak ada form, tidak ada database.
  */
-export const PROJECTS = [
-  'Simetris', 'New Collection', 'SIMFAST', 'Integrasi System',
-  'Marketing Service', 'NEW MUFINS SYARIAH', 'Free Sprint', 'Full Sprint',
-] as const
-
 export const DONE_STATUSES = new Set(['Done', 'Development Done'])
 
 /** Dikeluarkan dari Ketersediaan Tim (hitungan maupun daftar) — dianggap selesai/tidak berlanjut, sama seperti Done. */
@@ -38,10 +32,3 @@ export const ENGINEERS: EngineerConfig[] = [
  * Override status per periode. Aturan otomatis "bulan aktif minimum" tetap berlaku di atas override ini.
  */
 export const STATUS_OVERRIDES: Record<string, Partial<Record<string, { status: 'Ranked' | 'Non-Ranked'; note: string }>>> = {}
-
-/** Level Timeline Commitment — input leader per periode. Default L3 bila tidak diisi. */
-export const TIMELINE_LEVELS: Record<string, Partial<Record<string, Level>>> = {
-  // '2026-Q3': { 'Riza Ari': 4, 'Farhad Zaman Zuhdi': 3 },
-}
-
-export const DEFAULT_TIMELINE_LEVEL: Level = 3
