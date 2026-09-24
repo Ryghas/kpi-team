@@ -59,6 +59,7 @@ export default async function ReportPage({ params }: Props) {
           title={g.title}
           results={report.results.filter((r) => r.engineer.group === g.id)}
           quarters={quarters}
+          periodId={period.id}
         />
       ))}
 

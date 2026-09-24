@@ -1,7 +1,7 @@
 import type { Period } from './types'
 
 const WIB_OFFSET = '+07:00'
-const PERIOD_RE = /^(\d{4})-(Q[1-4]|H[12])$/
+const PERIOD_RE = /^(\d{4})-(Q[1-4]|H[12]|FY)$/
 
 const wibDate = (year: number, month0: number) =>
   // month0 bisa 12 → otomatis roll ke Januari tahun berikutnya via Date.UTC trick di bawah
@@ -12,8 +12,17 @@ export function parsePeriod(id: string): Period | null {
   if (!m) return null
   const year = Number(m[1])
   const code = m[2]!
-  const idx = Number(code[1]) - 1
 
+  if (code === 'FY') {
+    return {
+      id, kind: 'year', months: 12,
+      label: `${year} (Jan–Des)`,
+      start: wibDate(year, 0),
+      end: wibDate(year, 12),
+    }
+  }
+
+  const idx = Number(code[1]) - 1
   if (code.startsWith('Q')) {
     const startMonth = idx * 3
     return {

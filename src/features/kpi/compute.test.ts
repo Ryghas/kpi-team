@@ -60,12 +60,37 @@ describe('computeReport', () => {
     const r = computeReport(issues, q3, { engineers })
     const get = (n: string) => r.results.find((x) => x.engineer.name === n)!
 
+    // Tiket tidak set storyPoints -> totalStoryPoints 0 untuk semua -> ratioStoryPoints 0 (rata-rata grup 0).
+    // ratio = 0,5 * ratioStoryPoints(0) + 0,5 * ratioWorkItems.
     expect(get('A').groupAvg).toBe(22.5)
-    expect(get('A').ratio).toBeCloseTo(30 / 22.5)
-    expect(get('A').levels.pcr).toBe(5)
+    expect(get('A').ratioStoryPoints).toBe(0)
+    expect(get('A').ratio).toBeCloseTo(0.5 * (30 / 22.5))
+    expect(get('A').levels.pcr).toBe(1)
     expect(get('B').levels.pcr).toBe(1)
-    expect(get('C').ratio).toBe(1) // satu-satunya FE ranked
+    expect(get('C').ratio).toBe(0.5) // satu-satunya FE ranked: ratioWorkItems 1x, ratioStoryPoints 0
     expect(get('Intern').rankInGroup).toBeNull()
+  })
+
+  it('Portfolio = 0,5 x rasio Story Points + 0,5 x rasio Work Item, masing-masing terhadap rata-rata grup sendiri', () => {
+    const issues = [
+      // A: 4 tiket, total 20 story points
+      issue('A', months[0]!, 'Task', { storyPoints: 5 }),
+      issue('A', months[0]!, 'Task', { storyPoints: 5 }),
+      issue('A', months[1]!, 'Task', { storyPoints: 5 }),
+      issue('A', months[2]!, 'Task', { storyPoints: 5 }),
+      // B: 2 tiket, total 10 story points (tidak isi story points sama sekali di 1 tiket)
+      issue('B', months[0]!, 'Task', { storyPoints: 10 }),
+      issue('B', months[1]!, 'Task', { storyPoints: null }),
+    ]
+    const r = computeReport(issues, q3, { engineers })
+    const get = (n: string) => r.results.find((x) => x.engineer.name === n)!
+
+    // rata-rata grup Mobile: work item (4+2)/2=3, story points (20+10)/2=15
+    expect(get('A').groupAvg).toBe(3)
+    expect(get('A').groupAvgStoryPoints).toBe(15)
+    expect(get('A').ratioWorkItems).toBeCloseTo(4 / 3)
+    expect(get('A').ratioStoryPoints).toBeCloseTo(20 / 15)
+    expect(get('A').ratio).toBeCloseTo(0.5 * (20 / 15) + 0.5 * (4 / 3))
   })
 
   it('mengabaikan tiket di luar periode dan Story, tanpa syarat minimum bulan aktif', () => {
